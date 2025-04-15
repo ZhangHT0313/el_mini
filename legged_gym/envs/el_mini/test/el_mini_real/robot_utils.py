@@ -76,11 +76,14 @@ JOINT_OFFSETS = np.array(
 COM_OFFSET = -np.array([0.0, 0.0, 0.0])  # x++ back++     y++ right++
 
 HIP_OFFSETS = np.array([[0.1745, -0.062, 0.], [0.1745, 0.062, 0.],
-                        [-0.1745, -0.062, 0.], [-0.1745, 0.062, 0.]
+                        [-0.1745, -0.062, 0.], [-0.1745, 0.062, 0.],
+                        [0, -0.062, 0.], [0, 0.062, 0.],
                         ]) + COM_OFFSET
 
 HIP_POSITION = np.array([[0.1745, -0.16, 0], [0.1745, 0.16, 0],
-                         [-0.1745, -0.16, 0], [-0.1745, 0.16, 0]])
+                         [-0.1745, -0.16, 0], [-0.1745, 0.16, 0],
+                         [0, -0.16, 0], [0, 0.16, 0],
+                         ])
 
 MPC_BODY_MASS = 12.7
 MPC_BODY_INERTIA = np.array((0.24, 0, 0, 0, 0.80, 0, 0, 0, 1.00))
@@ -88,9 +91,9 @@ MPC_BODY_HEIGHT = 0.3
 
 STAND_UP_HEIGHT = MPC_BODY_HEIGHT
 LEG_LENGTH = 0.20
-UPPER_LEG_LENGTH = 0.20
-LOWER_LEG_LENGTH = 0.21
-HIP_LENGTH = 0.0985
+UPPER_LEG_LENGTH = 0.13
+LOWER_LEG_LENGTH = 0.25
+HIP_LENGTH = 0.15
 STANDUP_ABDUCTION_ANGLE = 0.0
 STANDUP_HIP_ANGLE = np.arccos(STAND_UP_HEIGHT / 2.0 / LEG_LENGTH)
 STANDUP_KNEE_ANGLE = -2.0 * STANDUP_HIP_ANGLE

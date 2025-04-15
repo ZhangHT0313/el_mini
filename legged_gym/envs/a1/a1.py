@@ -186,13 +186,5 @@ class A1(LeggedRobot):
             rew = self._reward_termination() * self.reward_scales["termination"]
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
-    
-    #------------ reward functions----------------
-
-    def _reward_termination(self):
-        # 设置终止奖励
-      
-
-        return self.reset_buf * ~self.time_out_buf
 
 

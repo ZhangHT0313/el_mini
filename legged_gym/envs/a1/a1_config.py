@@ -56,7 +56,7 @@ class A1Cfg(LeggedRobotCfg):
 
     class env(LeggedRobotCfg.env):
         num_envs = 1000
-        num_privileged_obs = 54  # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise
+        num_privileged_obs = None  # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise
         num_observation_history = 40
         episode_length_s = 20  # episode length in seconds
         curriculum_factor = 0.8

@@ -104,6 +104,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         file = "{LEGGED_GYM_ROOT_DIR}/resources/robots/el_mini/urdf/el_mini.urdf"
         name = "el_mini"
         foot_name = "FOOT"
+        shoulder_name = "shoulder"
         penalize_contacts_on = ["RB_SHANK",
                                 "LB_SHANK", 
                                 "RM_SHANK",
