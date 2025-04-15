@@ -40,6 +40,17 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
 
+    class pmtg:
+        gait_type = 'walk'
+        duty_factor = 0.5
+        base_frequency = 1.25
+        max_clearance = 0.10
+        body_height = 0.28
+        consider_foothold = False
+        z_updown_height_func = ["cubic_up", "cubic_down"]
+        max_horizontal_offset = 0.0
+        train_mode = True
+
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = 'plane'
         measure_heights = False
