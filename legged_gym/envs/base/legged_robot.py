@@ -888,13 +888,8 @@ class LeggedRobot(BaseTask):
 
     def _reward_base_height(self):
         # Penalize base height away from target
-        is_stance = ~self.pmtg.is_swing
-        stance_leg_num = is_stance.sum(dim=1)
-        contact_feet_height = self.rigid_body_state[:, self.feet_indices, 2] * is_stance
-        contact_shoulder_height = self.rigid_body_state[:, self.shoulder_indices, 2] * is_stance
-        contact_leg_height_z = contact_shoulder_height - contact_feet_height
-        rew = torch.sum(torch.abs(self.cfg.rewards.base_height_target - contact_leg_height_z) * is_stance, dim=1)
-        return rew
+        base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
+        return torch.square(base_height - self.cfg.rewards.base_height_target)
     
     def _reward_torques(self):
         # Penalize torques

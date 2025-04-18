@@ -101,6 +101,16 @@ class PMTrajectoryGenerator:
         self.device = device
         self.num_envs = num_envs
 
+        # 初始化mirror_coe
+        self.mirror_coe = torch.ones(6,device=self.device)  # 创建一个长度为6的全1张量
+        # self.mirror_coe = torch.ones(6)  # 创建一个长度为6的全1张量
+        self.mirror_coe[[3, 4, 5]] = -1  # 设置第0, 1和5号腿的mirror_coe为-1
+
+        # 初始化offset_coe
+        self.offset_coe = torch.ones(6,device=self.device)  # 创建一个长度为6的全1张量
+        # self.offset_coe = torch.ones(6)  # 创建一个长度为6的全1张量
+        self.offset_coe[[0,3]] = -1  # 
+
         # Set initial phase based on gait type
         if self.gait_type == 'trot':
             self.initial_phase = to_torch(_TROT_PHASE_OFFSET, device=self.device)
@@ -109,14 +119,14 @@ class PMTrajectoryGenerator:
         elif self.gait_type == 'bound':
             self.initial_phase = to_torch(_BOUND_PHASE_OFFSET, device=self.device)
 
-        self.default_joint_position = torch.zeros(self.num_envs, 12, dtype=torch.float, device=self.device)
+        self.default_joint_position = torch.zeros(self.num_envs, 18, dtype=torch.float, device=self.device)
 
         # Initial the joint positions and joint angles
-        self.foot_target_position_in_hip_frame = torch.zeros(self.num_envs, 12, dtype=torch.float, device=self.device)
-        self.foot_target_position_in_base_frame = torch.zeros(self.num_envs, 12, dtype=torch.float, device=self.device)
-        self.target_joint_angles = torch.zeros(self.num_envs, 12, dtype=torch.float, device=self.device)
+        self.foot_target_position_in_hip_frame = torch.zeros(self.num_envs, 18, dtype=torch.float, device=self.device)
+        self.foot_target_position_in_base_frame = torch.zeros(self.num_envs, 18, dtype=torch.float, device=self.device)
+        self.target_joint_angles = torch.zeros(self.num_envs, 18, dtype=torch.float, device=self.device)
 
-        self.is_swing = torch.zeros((self.num_envs, 4), dtype=torch.bool, device=self.device)
+        self.is_swing = torch.zeros((self.num_envs, 6), dtype=torch.bool, device=self.device)
         self.clip_workspace_tensor = torch.ones((1, 1, 3), device=self.device, dtype=torch.float) * 0.15
 
         self.l_hip_sign = torch.tensor([1, -1, 1, -1], dtype=torch.float, device=self.device).repeat(self.num_envs, 1)
@@ -132,8 +142,8 @@ class PMTrajectoryGenerator:
         self.reset_time = torch.tensor(self.clock(), dtype=torch.float, device=self.device).repeat(self.num_envs, 1)
         self.time_since_reset = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device)
 
-        self.foot_trajectory = torch.zeros((self.num_envs, 4, 3), dtype=torch.float, device=self.device)
-        self.foot_trajectory_z = torch.zeros((self.num_envs, 4), dtype=torch.float, device=self.device) - self.body_height
+        self.foot_trajectory = torch.zeros((self.num_envs, 6 ,3), dtype=torch.float, device=self.device)
+        self.foot_trajectory_z = torch.zeros((self.num_envs, 6), dtype=torch.float, device=self.device) - self.body_height
 
         self.com_offset = to_torch(COM_OFFSET, device=self.device)
         self.hip_offsets = to_torch(HIP_OFFSETS, device=self.device)
@@ -396,22 +406,32 @@ class PMTrajectoryGenerator:
         Returns:
             A tensor representing the motor angles for one leg.
         """
-        l_up = self.UPPER_LEG_LENGTH
-        l_low = self.LOWER_LEG_LENGTH
-        l_hip = self.HIP_LENGTH * self.l_hip_sign
-        x, y, z = foot_position[:, :, 0], foot_position[:, :, 1], foot_position[:, :, 2]
-        theta_knee_input = torch.clip((x**2 + y**2 + z**2 - l_hip**2 - l_low**2 - l_up**2) / (2 * l_low * l_up), -1, 1)
-        theta_knee = -torch.arccos(theta_knee_input)
-        l = torch.sqrt(l_up**2 + l_low**2 + 2 * l_up * l_low * torch.cos(theta_knee))
-        theta_hip_input = torch.clip(-x / l, -1, 1)
-        theta_hip = torch.arcsin(theta_hip_input) - theta_knee / 2
-        c1 = l_hip * y - l * torch.cos(theta_hip + theta_knee / 2) * z
-        s1 = l * torch.cos(theta_hip + theta_knee / 2) * y + l_hip * z
-        theta_ab = torch.atan2(s1, c1)
+        self.l2 = self.UPPER_LEG_LENGTH
+        self.l1 = self.LOWER_LEG_LENGTH
+        self.l0 = self.HIP_LENGTH * self.l_hip_sign 
+        # p的形状为[n, 6, 3]
+        pos = foot_position.clone()
+        pos[:,:,2] += self.hip_offset  # 偏移量
+        q00 = torch.atan2(pos[:, :, 0], self.mirror_coe*pos[:, :, 1])
+        K0 = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1]))
+        q0 = q00 - self.offset_coe*torch.asin(self.knee_offset/K0)
+        K = torch.sqrt(torch.square(K0) - self.knee_offset**2) - self.l0 # 计算K的值
+        # K = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1])) - self.l0
+        beta = torch.atan2(pos[:, :, 2], K)
 
-        res = torch.cat((theta_ab.unsqueeze(2), theta_hip.unsqueeze(2), theta_knee.unsqueeze(2)),
-                        dim=2).reshape(foot_position.shape[0], -1)
-        return res
+        temp = (torch.square(K) + torch.square(pos[:, :, 2]) + self.l1 ** 2 - self.l2 ** 2) / \
+               (2 * self.l1 * torch.sqrt(torch.square(K) + torch.square(pos[:, :, 2])))
+        fai = torch.acos(self._limit(temp))
+
+        q1 = beta + fai
+        temp = (torch.square(K) + torch.square(pos[:, :, 2]) - self.l1 ** 2 - self.l2 ** 2) / \
+               (2 * self.l1 * self.l2)
+        q2 = -torch.acos(self._limit(temp))
+        q1 = torch.pi / 2 - q1
+        q2 += torch.pi
+
+        q_limited = self._limit_angle(torch.stack([q0, q1, q2], dim=2))  # 输出形状为[n, 6, 3]
+        return q_limited
 
 
 if __name__ == "__main__":
