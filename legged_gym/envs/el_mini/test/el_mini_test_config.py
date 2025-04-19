@@ -123,7 +123,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         flip_visual_attachments = False
 
     class domain_rand( LeggedRobotCfg.domain_rand):
-        randomize_base_mass = True
+        randomize_base_mass1500 = True
         added_mass_range = [-5., 5.]
     
     class noise:
@@ -156,7 +156,7 @@ class EL_MINI_TEST_PPO( LeggedRobotCfgPPO ):
         # rnn_num_layers = 1
 
     class runner( LeggedRobotCfgPPO.runner ):
-        max_iterations = 1500
+        max_iterations = 1000
 
         # logging
         save_interval = 50 # check for potential saves every this many iterations
