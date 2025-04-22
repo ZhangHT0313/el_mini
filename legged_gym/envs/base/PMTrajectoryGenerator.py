@@ -32,9 +32,9 @@ from typing import Any, Mapping, Sequence, Tuple
 from legged_gym.utils.isaacgym_utils import get_euler_xyz, coordinate_rotation, to_torch, quat_apply
 import torch
 
-_TROT_PHASE_OFFSET = [0, torch.pi, torch.pi, 0,torch.pi,0]
-_WALK_PHASE_OFFSET = [0, torch.pi / 2, torch.pi, torch.pi / 2 * 3,]
-_BOUND_PHASE_OFFSET = [0, 0, torch.pi, torch.pi]
+_TROT_PHASE_OFFSET = [torch.pi,torch.pi,0,0,0,torch.pi]
+_WALK_PHASE_OFFSET = [0, torch.pi / 3, 2 * torch.pi / 3, torch.pi, 4 * torch.pi / 3, 5 * torch.pi / 3]
+_BOUND_PHASE_OFFSET = [0, 0, torch.pi, torch.pi, 0, 0]
 
 
 class PMTrajectoryGenerator:
@@ -49,7 +49,7 @@ class PMTrajectoryGenerator:
         device: torch.device,
         num_envs: int,
         param: Any,
-        task_name='a1',
+        task_name='el_mini_test',
     ):
         """
         Initialize the PMTrajectoryGenerator.
@@ -67,8 +67,8 @@ class PMTrajectoryGenerator:
         """
 
         # Import robot parameters based on task_name
-        if 'a1' in task_name:
-            from legged_gym.envs.a1.a1_real.robot_utils import (INIT_MOTOR_ANGLES, UPPER_LEG_LENGTH, LOWER_LEG_LENGTH,
+        if 'el_mini_test' in task_name:
+            from legged_gym.envs.el_mini.test.el_mini_real.robot_utils import (INIT_MOTOR_ANGLES, UPPER_LEG_LENGTH, LOWER_LEG_LENGTH,
                                                                 HIP_LENGTH, HIP_POSITION, COM_OFFSET, HIP_OFFSETS)
         # elif 'lite' in task_name:
         #     from legged_gym.envs.lite3.lite3_real.robot_utils import (INIT_MOTOR_ANGLES, UPPER_LEG_LENGTH, LOWER_LEG_LENGTH,
@@ -88,6 +88,9 @@ class PMTrajectoryGenerator:
         self.COM_OFFSET = COM_OFFSET
         self.HIP_OFFSETS = HIP_OFFSETS
 
+        self.hip_offset = 0.034  # 髋关节偏移量
+        self.knee_offset = 0.0535  # 膝关节偏移量
+
         self.robot = robot
         self.clock = clock
         self.gait_type = param.gait_type
@@ -102,7 +105,7 @@ class PMTrajectoryGenerator:
         self.num_envs = num_envs
 
         # 初始化mirror_coe
-        self.mirror_coe = torch.ones(6,device=self.device)  # 创建一个长度为6的全1张量
+        self.mirror_coe = torch.ones(6,device=self.device)  # 创建一 = [0, torch.pi, torch.pi, 0,torch.pi,0]个长度为6的全1张量
         # self.mirror_coe = torch.ones(6)  # 创建一个长度为6的全1张量
         self.mirror_coe[[3, 4, 5]] = -1  # 设置第0, 1和5号腿的mirror_coe为-1
 
@@ -129,7 +132,7 @@ class PMTrajectoryGenerator:
         self.is_swing = torch.zeros((self.num_envs, 6), dtype=torch.bool, device=self.device)
         self.clip_workspace_tensor = torch.ones((1, 1, 3), device=self.device, dtype=torch.float) * 0.15
 
-        self.l_hip_sign = torch.tensor([1, -1, 1, -1], dtype=torch.float, device=self.device).repeat(self.num_envs, 1)
+        self.l_hip_sign = torch.tensor([1, -1, 1, -1, 1, -1], dtype=torch.float, device=self.device).repeat(self.num_envs, 1)
         self.base_frequency_tensor = torch.tensor(self.base_frequency, dtype=torch.float,
                                                   device=self.device).repeat(self.num_envs, 1)
 
@@ -148,17 +151,21 @@ class PMTrajectoryGenerator:
         self.com_offset = to_torch(COM_OFFSET, device=self.device)
         self.hip_offsets = to_torch(HIP_OFFSETS, device=self.device)
         self.hip_position = to_torch(HIP_POSITION, device=self.device)
-        swap_leg_operator = torch.zeros((4, 4), device=self.device, dtype=torch.float)
+        swap_leg_operator = torch.zeros((6, 6), device=self.device, dtype=torch.float)
+        # 交换腿0和腿1
         swap_leg_operator[0, 1] = 1.0
         swap_leg_operator[1, 0] = 1.0
+        # 交换腿2和腿3
         swap_leg_operator[2, 3] = 1.0
         swap_leg_operator[3, 2] = 1.0
+        # 交换腿4和腿5
+        swap_leg_operator[4, 5] = 1.0
+        swap_leg_operator[5, 4] = 1.0
         self.hip_offsets = torch.matmul(swap_leg_operator, self.hip_offsets)
         self.hip_position = torch.matmul(swap_leg_operator, self.hip_position)
 
         self.f_up = self.gen_func(param.z_updown_height_func[0])
         self.f_down = self.gen_func(param.z_updown_height_func[1])
-
     def gen_func(self, func_name):
         """
         Generate a lambda function based on the provided function name.
@@ -223,7 +230,7 @@ class PMTrajectoryGenerator:
           delta_phi: phase variable.
           residual_xyz: residual in horizontal hip reference frame.
           residual_angle: residual in joint space.
-          base_orientation: quaternion (w,x,y,z) of the base link.
+base_orientation: quaternion (w,x,y,z) of the base link.
 
         Returns:
             target_joint_angles: joint angle of for leg (FL,FR,RL,RR)
@@ -233,8 +240,9 @@ class PMTrajectoryGenerator:
         self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
                                                                                base_orientation)
         self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_base_frame)
+        # Flatten target_joint_angles to match the expected shape
+        self.target_joint_angles = self.target_joint_angles.view(self.num_envs, -1)
         self.target_joint_angles += residual_angle
-
         return self.target_joint_angles
 
     def set_base_frequency(self, desired_frequency: float):
@@ -338,7 +346,7 @@ class PMTrajectoryGenerator:
         Returns:
             A sequence of floats representing the foot target positions in the horizontal hip reference frame.
         """
-        self.foot_target_position_in_hip_frame = residual_xyz.reshape(-1, 4, 3)
+        self.foot_target_position_in_hip_frame = residual_xyz.reshape(-1, 6, 3)
         self.gen_foot_trajectory_axis_z(delta_phi, self.clock())
         self.foot_target_position_in_hip_frame += self.foot_trajectory
 
@@ -408,7 +416,7 @@ class PMTrajectoryGenerator:
         """
         self.l2 = self.UPPER_LEG_LENGTH
         self.l1 = self.LOWER_LEG_LENGTH
-        self.l0 = self.HIP_LENGTH * self.l_hip_sign 
+        self.l0 = self.HIP_LENGTH
         # p的形状为[n, 6, 3]
         pos = foot_position.clone()
         pos[:,:,2] += self.hip_offset  # 偏移量
@@ -433,6 +441,14 @@ class PMTrajectoryGenerator:
         q_limited = self._limit_angle(torch.stack([q0, q1, q2], dim=2))  # 输出形状为[n, 6, 3]
         return q_limited
 
+    def _limit(self, value, upper=1.0, lower=-1.0):
+        return torch.clamp(value, min=lower, max=upper)
+
+    def _limit_angle(self, q):
+        q[:, :, 1] = torch.clamp(q[:, :, 1], min=-0.5233, max=3.14)  # 限制 q1 在 [-0.5233, 3.1]
+        q[:, :, 2] = torch.clamp(q[:, :, 2], min=-0.6978, max=3.14)  # 限制 q2 在 [-0.6978, 3.14]
+        return q
+
 
 if __name__ == "__main__":
     num_envs = 4096
@@ -441,9 +457,9 @@ if __name__ == "__main__":
     pmtg = PMTrajectoryGenerator(robot=None, num_envs=num_envs, device=device, gait_type='trot')
 
     while True:
-        residual_xyz = torch.zeros(num_envs, 12, dtype=torch.float, device=device)
-        residual_angle = torch.zeros(num_envs, 12, dtype=torch.float, device=device)
-        delta_phi = torch.zeros(num_envs, 4, dtype=torch.float, device=device)
+        residual_xyz = torch.zeros(num_envs, 18, dtype=torch.float, device=device)
+        residual_angle = torch.zeros(num_envs, 18, dtype=torch.float, device=device)
+        delta_phi = torch.zeros(num_envs, 6, dtype=torch.float, device=device)
         base_quat = torch.tensor([0, 0, 0, 1], dtype=torch.float, device=device).repeat(num_envs, 1)
 
         observation = pmtg.update_observation()

@@ -32,10 +32,11 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class env:
-        num_envs = 4096
+        num_envs = 10
         num_observations = 66   #66 = 3+3+3+18+18+18
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 18
+        num_policy_outputs = 24
         env_spacing = 3.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
@@ -45,7 +46,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         duty_factor = 0.5
         base_frequency = 1.25
         max_clearance = 0.10
-        body_height = 0.28
+        body_height = 0.17
         consider_foothold = False
         z_updown_height_func = ["cubic_up", "cubic_down"]
         max_horizontal_offset = 0.0
@@ -56,7 +57,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         measure_heights = False
 
     class init_state( LeggedRobotCfg.init_state ):
-        pos = [0.0, 0.0, 0.1] # x,y,z [m]
+        pos = [0.0, 0.0, 0.17] # x,y,z [m]
         default_joint_angles = {
                 # 左前腿 (LF)
                 "LF_HAA": 0.0,    # 左前髋关节外展/内收角度
@@ -99,6 +100,19 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         decimation = 4
         use_actuator_network = True
         actuator_net_file = "{LEGGED_GYM_ROOT_DIR}/resources/actuator_nets/anydrive_v3_lstm.pt"
+    
+    class commands:
+        curriculum = False
+        max_curriculum = 1.
+        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+        resampling_time = 10. # time before command are changed[s]
+        heading_command = True # if true: compute ang vel command from heading error
+        gamepad_commands = True
+        class ranges:
+            lin_vel_x = [-1.0, 1.0] # min max [m/s]
+            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
+            ang_vel_yaw = [-1, 1]    # min max [rad/s]
+            heading = [-3.14, 3.14]
 
     class asset( LeggedRobotCfg.asset ):
         file = "{LEGGED_GYM_ROOT_DIR}/resources/robots/el_mini/urdf/el_mini.urdf"

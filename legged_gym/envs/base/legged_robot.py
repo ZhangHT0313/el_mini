@@ -52,7 +52,7 @@ from .PMTrajectoryGenerator import PMTrajectoryGenerator
 
 class LeggedRobot(BaseTask):
     # env Init
-    def __init__(self, cfg: LeggedRobotCfg, sim_params, physics_engine, sim_device, headless,task_name='a1'):
+    def __init__(self, cfg: LeggedRobotCfg, sim_params, physics_engine, sim_device, headless,task_name="el_mini_test"):
         """ Parses the provided config file,
             calls create_sim() (which creates, simulation, terrain and environments),
             initilizes pytorch buffers used during training
