@@ -32,8 +32,8 @@ from typing import Any, Mapping, Sequence, Tuple
 from legged_gym.utils.isaacgym_utils import get_euler_xyz, coordinate_rotation, to_torch, quat_apply
 import torch
 
-_TROT_PHASE_OFFSET = [0, torch.pi, torch.pi, 0]
-_WALK_PHASE_OFFSET = [0, torch.pi / 2, torch.pi, torch.pi / 2 * 3]
+_TROT_PHASE_OFFSET = [0, torch.pi, torch.pi, 0,torch.pi,0]
+_WALK_PHASE_OFFSET = [0, torch.pi / 2, torch.pi, torch.pi / 2 * 3,]
 _BOUND_PHASE_OFFSET = [0, 0, torch.pi, torch.pi]
 
 
@@ -136,7 +136,7 @@ class PMTrajectoryGenerator:
         self.initial_phase = self.initial_phase.repeat(self.num_envs, 1)
         self.phi = self.initial_phase.clone()
         self.swing_phi = torch.zeros_like(self.phi)
-        self.delta_phi = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device)
+        self.delta_phi = torch.zeros(self.num_envs, 6, dtype=torch.float, device=self.device)
         self.cos_phi = torch.cos(self.phi)
         self.sin_phi = torch.sin(self.phi)
         self.reset_time = torch.tensor(self.clock(), dtype=torch.float, device=self.device).repeat(self.num_envs, 1)

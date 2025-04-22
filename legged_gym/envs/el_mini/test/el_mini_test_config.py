@@ -41,7 +41,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         episode_length_s = 20 # episode length in seconds
 
     class pmtg:
-        gait_type = 'walk'
+        gait_type = 'trot'
         duty_factor = 0.5
         base_frequency = 1.25
         max_clearance = 0.10
