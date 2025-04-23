@@ -49,7 +49,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         body_height = 0.17
         consider_foothold = False
         z_updown_height_func = ["cubic_up", "cubic_down"]
-        max_horizontal_offset = 0.0
+        max_horizontal_offset = 0.1
         train_mode = True
 
     class terrain( LeggedRobotCfg.terrain ):

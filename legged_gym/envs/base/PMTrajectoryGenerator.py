@@ -152,17 +152,17 @@ class PMTrajectoryGenerator:
         self.hip_offsets = to_torch(HIP_OFFSETS, device=self.device)
         self.hip_position = to_torch(HIP_POSITION, device=self.device)
         swap_leg_operator = torch.zeros((6, 6), device=self.device, dtype=torch.float)
-        # 交换腿0和腿1
-        swap_leg_operator[0, 1] = 1.0
-        swap_leg_operator[1, 0] = 1.0
-        # 交换腿2和腿3
-        swap_leg_operator[2, 3] = 1.0
-        swap_leg_operator[3, 2] = 1.0
-        # 交换腿4和腿5
-        swap_leg_operator[4, 5] = 1.0
-        swap_leg_operator[5, 4] = 1.0
-        self.hip_offsets = torch.matmul(swap_leg_operator, self.hip_offsets)
-        self.hip_position = torch.matmul(swap_leg_operator, self.hip_position)
+        # # 交换腿0和腿1
+        # swap_leg_operator[0, 1] = 1.0
+        # swap_leg_operator[1, 0] = 1.0
+        # # 交换腿2和腿3
+        # swap_leg_operator[2, 3] = 1.0
+        # swap_leg_operator[3, 2] = 1.0
+        # # 交换腿4和腿5
+        # swap_leg_operator[4, 5] = 1.0
+        # swap_leg_operator[5, 4] = 1.0
+        # self.hip_offsets = torch.matmul(swap_leg_operator, self.hip_offsets)
+        # self.hip_position = torch.matmul(swap_leg_operator, self.hip_position)
 
         self.f_up = self.gen_func(param.z_updown_height_func[0])
         self.f_down = self.gen_func(param.z_updown_height_func[1])
@@ -239,11 +239,11 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         if torch.isnan(residual_angle).any():
             print("NaN detected in residual_angle")
         self.gen_foot_target_position_in_horizontal_hip_frame(delta_phi, residual_xyz, **kwargs)
-        self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
-                                                                               base_orientation)
-        self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_base_frame)
+        # self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
+        #                                                                        base_orientation)
+        # self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_base_frame)
+        self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_hip_frame)
 
-        # self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_hip_frame)
         # Flatten target_joint_angles to match the expected shape
         self.target_joint_angles = self.target_joint_angles.view(self.num_envs, -1)
         self.target_joint_angles += residual_angle
@@ -323,25 +323,21 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         Returns:
             A sequence of floats representing the foot trajectory along the z-axis.
         """
+        # duty_factor = 支撑阶段时间 / 总步态周期时间
 
         self.time_since_reset = self.clock() - self.reset_time
         self.phi = ((self.initial_phase + 2 * torch.pi * self.base_frequency * self.time_since_reset + delta_phi) / torch.pi) % 2 * torch.pi
 
         self.delta_phi = delta_phi
-        if torch.isnan(delta_phi).any():
-            print("NaN detected in delta_phi")
         self.cos_phi = torch.cos(self.phi)
         self.sin_phi = torch.sin(self.phi)
-        if torch.isnan(self.phi).any():
-            print("NaN detected in phi")
-        if torch.isnan(self.cos_phi).any():
-            print("NaN detected in cos_phi")
 
         k3 = (self.phi / (2 * torch.pi)) < self.duty_factor
         self.is_swing = ~k3.clone()
         self.swing_phi = (self.phi / (2 * torch.pi) - self.duty_factor) / (1 - self.duty_factor)  # [0,1)
+        # f_up 抬升部分轨迹函数     f_down 降落部分轨迹函数
         factor = torch.where(self.swing_phi < 0.5, self.f_up(self.swing_phi), self.f_down(self.swing_phi))
-        self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) - self.body_height
+        self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) - self.body_height  # max_clearance 最大抬升高度
         self.foot_trajectory[:, :, 0] = -self.max_horizontal_offset * torch.sin(self.swing_phi * 2 * torch.pi) * self.is_swing
 
     def gen_foot_target_position_in_horizontal_hip_frame(self, delta_phi: Sequence[float], residual_xyz: Sequence[float],
@@ -414,6 +410,7 @@ base_orientation: quaternion (w,x,y,z) of the base link.
             A tensor representing the joint angles for each leg.
         """
         foot_position = target_position_in_base_frame - self.hip_offsets
+        # print("foot_position", foot_position)
         joint_angles = self.foot_position_in_hip_frame_to_joint_angle(foot_position)
         if torch.isnan(foot_position).any():
             print("NaN detected in foot_position")
@@ -421,64 +418,6 @@ base_orientation: quaternion (w,x,y,z) of the base link.
             print("NaN detected in joint_angles")
 
         return joint_angles
-
-    # def foot_position_in_hip_frame_to_joint_angle(self, foot_position):
-    #     """
-    #     Compute the motor angles for one leg using inverse kinematics (IK).
-
-    #     Args:
-    #         foot_position: A tensor representing the foot positions in the hip frame.
-
-    #     Returns:
-    #         A tensor representing the motor angles for one leg.
-    #     """
-    #     self.l2 = self.UPPER_LEG_LENGTH
-    #     self.l1 = self.LOWER_LEG_LENGTH
-    #     self.l0 = self.HIP_LENGTH
-    #     # p的形状为[n, 6, 3]
-    #     pos = foot_position.clone()
-    #     pos[:,:,2] += self.hip_offset  # 偏移量
-    #     q00 = torch.atan2(pos[:, :, 0], self.mirror_coe*pos[:, :, 1])
-    #     # K0 = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1]))
-    #     # q0 = q00 - self.offset_coe*torch.asin(self.knee_offset/K0)
-    #     # K = torch.sqrt(torch.square(K0) - self.knee_offset**2) - self.l0 # 计算K的值
-    #     # K = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1])) - self.l0
-    #     K0 = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1]) + 1e-6)
-    #     q0 = q00 - self.offset_coe * torch.asin(torch.clamp(self.knee_offset / K0, -1.0, 1.0))
-    #     K = torch.sqrt(torch.clamp(torch.square(K0) - self.knee_offset**2, min=0.0)) - self.l0
-
-    #     beta = torch.atan2(pos[:, :, 2], K)
-
-    #     temp = (torch.square(K) + torch.square(pos[:, :, 2]) + self.l1 ** 2 - self.l2 ** 2) / \
-    #            (2 * self.l1 * torch.sqrt(torch.square(K) + torch.square(pos[:, :, 2])))
-    #     fai = torch.acos(self._limit(temp))
-    # #     temp = (torch.square(K) + torch.square(pos[:, :, 2]) + self.l1**2 - self.l2**2) / \
-    # #    (2 * self.l1 * torch.sqrt(torch.square(K) + torch.square(pos[:, :, 2])))
-    # #     fai = torch.acos(self._limit(temp))
-
-    #     q1 = beta + fai
-    #     temp = (torch.square(K) + torch.square(pos[:, :, 2]) - self.l1 ** 2 - self.l2 ** 2) / \
-    #            (2 * self.l1 * self.l2)
-    #     q2 = -torch.acos(self._limit(temp))
-    # #     temp = (torch.square(K) + torch.square(pos[:, :, 2]) - self.l1**2 - self.l2**2) / \
-    # #    (2 * self.l1 * self.l2)
-    # #     q2 = -torch.acos(self._limit(temp))
-    #     q1 = torch.pi / 2 - q1
-    #     q2 += torch.pi
-
-    #     if torch.isnan(K0).any():
-    #         print("NaN detected in K0")
-    #     if torch.isnan(K).any():
-    #         print("NaN detected in K")
-    #     if torch.isnan(q0).any():
-    #         print("NaN detected in q0")
-    #     if torch.isnan(q1).any():
-    #         print("NaN detected in q1")
-    #     if torch.isnan(q2).any():
-    #         print("NaN detected in q2")
-    #     q_limited = self._limit_angle(torch.stack([q0, q1, q2], dim=2))  # 输出形状为[n, 6, 3]
-    #     return q_limited
-
 
     def foot_position_in_hip_frame_to_joint_angle(self, foot_position):
         """
@@ -490,22 +429,70 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         Returns:
             A tensor representing the motor angles for one leg.
         """
-        l_up = self.UPPER_LEG_LENGTH
-        l_low = self.LOWER_LEG_LENGTH
-        l_hip = self.HIP_LENGTH * self.l_hip_sign
-        x, y, z = foot_position[:, :, 0], foot_position[:, :, 1], foot_position[:, :, 2]
-        theta_knee_input = torch.clip((x**2 + y**2 + z**2 - l_hip**2 - l_low**2 - l_up**2) / (2 * l_low * l_up), -1, 1)
-        theta_knee = -torch.arccos(theta_knee_input)
-        l = torch.sqrt(l_up**2 + l_low**2 + 2 * l_up * l_low * torch.cos(theta_knee))
-        theta_hip_input = torch.clip(-x / l, -1, 1)
-        theta_hip = torch.arcsin(theta_hip_input) - theta_knee / 2
-        c1 = l_hip * y - l * torch.cos(theta_hip + theta_knee / 2) * z
-        s1 = l * torch.cos(theta_hip + theta_knee / 2) * y + l_hip * z
-        theta_ab = torch.atan2(s1, c1)
+        self.l2 = self.UPPER_LEG_LENGTH
+        self.l1 = self.LOWER_LEG_LENGTH
+        self.l0 = self.HIP_LENGTH
+        # p的形状为[n, 6, 3]
+        pos = foot_position.clone()
+        pos[:,:,2] += self.hip_offset  # 偏移量
+        q00 = torch.atan2(pos[:, :, 0], self.mirror_coe*pos[:, :, 1])
+        K0 = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1]))
+        q0 = q00 - self.offset_coe*torch.asin(self.knee_offset/K0)
+        K = torch.sqrt(torch.square(K0) - self.knee_offset**2) - self.l0 # 计算K的值
 
-        res = torch.cat((theta_ab.unsqueeze(2), theta_hip.unsqueeze(2), theta_knee.unsqueeze(2)),
-                        dim=2).reshape(foot_position.shape[0], -1)
-        return res
+        beta = torch.atan2(pos[:, :, 2], K)
+
+        temp = (torch.square(K) + torch.square(pos[:, :, 2]) + self.l1 ** 2 - self.l2 ** 2) / \
+               (2 * self.l1 * torch.sqrt(torch.square(K) + torch.square(pos[:, :, 2])))
+        fai = torch.acos(self._limit(temp))
+
+        q1 = beta + fai
+        temp = (torch.square(K) + torch.square(pos[:, :, 2]) - self.l1 ** 2 - self.l2 ** 2) / \
+               (2 * self.l1 * self.l2)
+        q2 = -torch.acos(self._limit(temp))
+        q1 = torch.pi / 2 - q1
+        q2 += torch.pi
+
+        if torch.isnan(K0).any():
+            print("NaN detected in K0")
+        if torch.isnan(K).any():
+            print("NaN detected in K")
+        if torch.isnan(q0).any():
+            print("NaN detected in q0")
+        if torch.isnan(q1).any():
+            print("NaN detected in q1")
+        if torch.isnan(q2).any():
+            print("NaN detected in q2")
+        q_limited = self._limit_angle(torch.stack([q0, q1, q2], dim=2))  # 输出形状为[n, 6, 3]
+        return q_limited
+
+
+    # def foot_position_in_hip_frame_to_joint_angle(self, foot_position):
+    #     """
+    #     Compute the motor angles for one leg using inverse kinematics (IK).
+
+    #     Args:
+    #         foot_position: A tensor representing the foot positions in the hip frame.
+
+    #     Returns:
+    #         A tensor representing the motor angles for one leg.
+    #     """
+    #     l_up = self.UPPER_LEG_LENGTH
+    #     l_low = self.LOWER_LEG_LENGTH
+    #     l_hip = self.HIP_LENGTH * self.l_hip_sign
+    #     x, y, z = foot_position[:, :, 0], foot_position[:, :, 1], foot_position[:, :, 2]
+    #     theta_knee_input = torch.clip((x**2 + y**2 + z**2 - l_hip**2 - l_low**2 - l_up**2) / (2 * l_low * l_up), -1, 1)
+    #     theta_knee = -torch.arccos(theta_knee_input)
+    #     l = torch.sqrt(l_up**2 + l_low**2 + 2 * l_up * l_low * torch.cos(theta_knee))
+    #     theta_hip_input = torch.clip(-x / l, -1, 1)
+    #     theta_hip = torch.arcsin(theta_hip_input) - theta_knee / 2
+    #     c1 = l_hip * y - l * torch.cos(theta_hip + theta_knee / 2) * z
+    #     s1 = l * torch.cos(theta_hip + theta_knee / 2) * y + l_hip * z
+    #     theta_ab = torch.atan2(s1, c1)
+
+    #     res = torch.cat((theta_ab.unsqueeze(2), theta_hip.unsqueeze(2), theta_knee.unsqueeze(2)),
+    #                     dim=2).reshape(foot_position.shape[0], -1)
+    #     return res
 
     def _limit(self, value, upper=1.0, lower=-1.0):
         return torch.clamp(value, min=lower, max=upper)
