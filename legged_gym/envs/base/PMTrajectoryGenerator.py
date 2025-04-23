@@ -437,23 +437,42 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         pos = foot_position.clone()
         pos[:,:,2] += self.hip_offset  # 偏移量
         q00 = torch.atan2(pos[:, :, 0], self.mirror_coe*pos[:, :, 1])
-        K0 = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1]))
-        q0 = q00 - self.offset_coe*torch.asin(self.knee_offset/K0)
-        K = torch.sqrt(torch.square(K0) - self.knee_offset**2) - self.l0 # 计算K的值
+        # K0 = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1]))
+        K0 = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1]) + 1e-6)
+        # q0 = q00 - self.offset_coe*torch.asin(self.knee_offset/K0)
+        q0 = q00 - self.offset_coe * torch.asin(torch.clamp(self.knee_offset / K0, -1.0, 1.0))
+        # K = torch.sqrt(torch.square(K0) - self.knee_offset**2) - self.l0 # 计算K的值
+        K = torch.sqrt(torch.clamp(torch.square(K0) - self.knee_offset**2, min=0.0)) - self.l0
         # K = torch.sqrt(torch.square(pos[:, :, 0]) + torch.square(pos[:, :, 1])) - self.l0
         beta = torch.atan2(pos[:, :, 2], K)
 
-        temp = (torch.square(K) + torch.square(pos[:, :, 2]) + self.l1 ** 2 - self.l2 ** 2) / \
-               (2 * self.l1 * torch.sqrt(torch.square(K) + torch.square(pos[:, :, 2])))
+        # temp = (torch.square(K) + torch.square(pos[:, :, 2]) + self.l1 ** 2 - self.l2 ** 2) / \
+        #        (2 * self.l1 * torch.sqrt(torch.square(K) + torch.square(pos[:, :, 2])))
+        # fai = torch.acos(self._limit(temp))
+        temp = (torch.square(K) + torch.square(pos[:, :, 2]) + self.l1**2 - self.l2**2) / \
+       (2 * self.l1 * torch.sqrt(torch.square(K) + torch.square(pos[:, :, 2])))
         fai = torch.acos(self._limit(temp))
 
         q1 = beta + fai
-        temp = (torch.square(K) + torch.square(pos[:, :, 2]) - self.l1 ** 2 - self.l2 ** 2) / \
-               (2 * self.l1 * self.l2)
+        # temp = (torch.square(K) + torch.square(pos[:, :, 2]) - self.l1 ** 2 - self.l2 ** 2) / \
+        #        (2 * self.l1 * self.l2)
+        # q2 = -torch.acos(self._limit(temp))
+        temp = (torch.square(K) + torch.square(pos[:, :, 2]) - self.l1**2 - self.l2**2) / \
+       (2 * self.l1 * self.l2)
         q2 = -torch.acos(self._limit(temp))
         q1 = torch.pi / 2 - q1
         q2 += torch.pi
 
+        if torch.isnan(K0).any():
+            print("NaN detected in K0")
+        if torch.isnan(K).any():
+            print("NaN detected in K")
+        if torch.isnan(q0).any():
+            print("NaN detected in q0")
+        if torch.isnan(q1).any():
+            print("NaN detected in q1")
+        if torch.isnan(q2).any():
+            print("NaN detected in q2")
         q_limited = self._limit_angle(torch.stack([q0, q1, q2], dim=2))  # 输出形状为[n, 6, 3]
         return q_limited
 
