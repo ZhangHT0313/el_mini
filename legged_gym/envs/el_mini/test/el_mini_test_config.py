@@ -32,7 +32,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class env:
-        num_envs = 10
+        num_envs = 4096
         num_observations = 66   #66 = 3+3+3+18+18+18
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 18
@@ -45,11 +45,11 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         gait_type = 'trot'
         duty_factor = 0.5
         base_frequency = 1.25
-        max_clearance = 0.10
+        max_clearance = 0.05
         body_height = 0.17
         consider_foothold = False
         z_updown_height_func = ["cubic_up", "cubic_down"]
-        max_horizontal_offset = 0.1
+        max_horizontal_offset = 0.05
         train_mode = True
 
     class terrain( LeggedRobotCfg.terrain ):
@@ -160,7 +160,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
 
 class EL_MINI_TEST_PPO( LeggedRobotCfgPPO ):
     class policy:
-        init_noise_std = 0.5
+        init_noise_std = 0.3
         actor_hidden_dims = [512, 256, 128]
         critic_hidden_dims = [512, 256, 128]
         activation = 'elu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
