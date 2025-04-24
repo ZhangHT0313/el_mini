@@ -850,7 +850,7 @@ class EL_MINI_TEST(LeggedRobot):
         # Penalize feet height error
         is_swing = self.pmtg.is_swing
         # swing_leg_num = is_swing.sum(dim=1)
-        feet_height_error = self.pmtg.foot_target_position_in_base_frame[:, :, 2] - (
+        feet_height_error = self.pmtg.foot_target_position_in_hip_frame[:, :, 2] - (
             self.rigid_body_state[:, self.feet_indices, 2] - self.root_states[:, 2].reshape([-1, 1]))
         feet_height_error *= is_swing
         return torch.sum(torch.abs(feet_height_error.clip(min=0.0)), dim=1)

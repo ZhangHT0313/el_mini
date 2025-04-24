@@ -42,6 +42,7 @@ class PMTrajectoryGenerator:
     Class for generating foot target trajectories for a quadruped robot.
     """
 
+    #-----------------------Initialization-----------------------#
     def __init__(
         self,
         robot: Any,
@@ -126,7 +127,7 @@ class PMTrajectoryGenerator:
 
         # Initial the joint positions and joint angles
         self.foot_target_position_in_hip_frame = torch.zeros(self.num_envs, 18, dtype=torch.float, device=self.device)
-        self.foot_target_position_in_base_frame = torch.zeros(self.num_envs, 18, dtype=torch.float, device=self.device)
+        # self.foot_target_position_in_base_frame = torch.zeros(self.num_envs, 18, dtype=torch.float, device=self.device)
         self.target_joint_angles = torch.zeros(self.num_envs, 18, dtype=torch.float, device=self.device)
 
         self.is_swing = torch.zeros((self.num_envs, 6), dtype=torch.bool, device=self.device)
@@ -151,7 +152,7 @@ class PMTrajectoryGenerator:
         self.com_offset = to_torch(COM_OFFSET, device=self.device)
         self.hip_offsets = to_torch(HIP_OFFSETS, device=self.device)
         self.hip_position = to_torch(HIP_POSITION, device=self.device)
-        swap_leg_operator = torch.zeros((6, 6), device=self.device, dtype=torch.float)
+        # swap_leg_operator = torch.zeros((6, 6), device=self.device, dtype=torch.float)
         # # 交换腿0和腿1
         # swap_leg_operator[0, 1] = 1.0
         # swap_leg_operator[1, 0] = 1.0
@@ -209,45 +210,6 @@ class PMTrajectoryGenerator:
         self.reset_time[index_list] = self.clock()
         self.time_since_reset[index_list] = 0
 
-    def update_observation(self):
-        """
-        Update the last action and parameters of the Central Pattern Generator (CPG) and return the observation.
-
-        Returns:
-            observation (torch.Tensor): The updated observation containing delta_phi, cos_phi, sin_phi, and base_frequency.
-
-        """
-        base_frequency = self.base_frequency_tensor
-        observation = torch.cat((self.delta_phi, self.cos_phi, self.sin_phi, base_frequency), dim=1)
-
-        return observation
-
-    def get_action(self, delta_phi, residual_xyz, residual_angle, base_orientation, **kwargs):
-        """
-        compute the position in base frame, given the base orientation.
-
-        Args:
-          delta_phi: phase variable.
-          residual_xyz: residual in horizontal hip reference frame.
-          residual_angle: residual in joint space.
-base_orientation: quaternion (w,x,y,z) of the base link.
-
-        Returns:
-            target_joint_angles: joint angle of for leg (FL,FR,RL,RR)
-        """
-        delta_phi, residual_angle = delta_phi.to(self.device), residual_angle.to(self.device)
-        if torch.isnan(residual_angle).any():
-            print("NaN detected in residual_angle")
-        self.gen_foot_target_position_in_horizontal_hip_frame(delta_phi, residual_xyz, **kwargs)
-        # self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
-        #                                                                        base_orientation)
-        # self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_base_frame)
-        self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_hip_frame)
-
-        # Flatten target_joint_angles to match the expected shape
-        self.target_joint_angles = self.target_joint_angles.view(self.num_envs, -1)
-        self.target_joint_angles += residual_angle
-        return self.target_joint_angles
 
     def set_base_frequency(self, desired_frequency: float):
         """
@@ -312,6 +274,68 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         """
         return self.sin_phi
 
+    #-----------------------observation-----------------------#
+    def update_observation(self):
+        """
+        Update the last action and parameters of the Central Pattern Generator (CPG) and return the observation.
+
+        Returns:
+            observation (torch.Tensor): The updated observation containing delta_phi, cos_phi, sin_phi, and base_frequency.
+
+        """
+        base_frequency = self.base_frequency_tensor
+        observation = torch.cat((self.delta_phi, self.cos_phi, self.sin_phi, base_frequency), dim=1)
+
+        return observation
+    
+
+    #-----------------------action-----------------------#
+    def get_action(self, delta_phi, residual_xyz, residual_angle, base_orientation, **kwargs):
+        """
+        compute the position in base frame, given the base orientation.
+
+        Args:
+          delta_phi: phase variable.
+          residual_xyz: residual in horizontal hip reference frame.
+          residual_angle: residual in joint space.
+base_orientation: quaternion (w,x,y,z) of the base link.
+
+        Returns:
+            target_joint_angles: joint angle of for leg (FL,FR,RL,RR)
+        """
+        delta_phi, residual_angle = delta_phi.to(self.device), residual_angle.to(self.device)
+        if torch.isnan(residual_angle).any():
+            print("NaN detected in residual_angle")
+        self.gen_foot_target_position_in_horizontal_hip_frame(delta_phi, residual_xyz, **kwargs)
+        # self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
+        #                                                                        base_orientation)
+        # self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_base_frame)
+        self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_hip_frame)
+
+        # Flatten target_joint_angles to match the expected shape
+        self.target_joint_angles = self.target_joint_angles.view(self.num_envs, -1)
+        self.target_joint_angles += residual_angle
+        return self.target_joint_angles
+
+
+    def gen_foot_target_position_in_horizontal_hip_frame(self, delta_phi: Sequence[float], residual_xyz: Sequence[float],
+                                                         **kwargs) -> Sequence[float]:
+        """
+        Compute the foot target positions in the horizontal hip reference frame.
+
+        Args:
+            delta_phi: A sequence of floats representing the phase variable.
+            residual_xyz: A sequence of floats representing the residual in the horizontal hip reference frame.
+
+        Returns:
+            A sequence of floats representing the foot target positions in the horizontal hip reference frame.
+        """
+        self.foot_target_position_in_hip_frame = residual_xyz.reshape(-1, 6, 3)
+        self.gen_foot_trajectory_axis_z(delta_phi, self.clock())
+        self.foot_target_position_in_hip_frame += self.foot_trajectory
+
+        return self.foot_target_position_in_hip_frame
+    
     def gen_foot_trajectory_axis_z(self, delta_phi: Sequence[float], t: float) -> Sequence[float]:
         """
         Generate the foot trajectory along the z-axis.
@@ -340,64 +364,7 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) - self.body_height  # max_clearance 最大抬升高度
         self.foot_trajectory[:, :, 0] = -self.max_horizontal_offset * torch.sin(self.swing_phi * 2 * torch.pi) * self.is_swing
 
-    def gen_foot_target_position_in_horizontal_hip_frame(self, delta_phi: Sequence[float], residual_xyz: Sequence[float],
-                                                         **kwargs) -> Sequence[float]:
-        """
-        Compute the foot target positions in the horizontal hip reference frame.
 
-        Args:
-            delta_phi: A sequence of floats representing the phase variable.
-            residual_xyz: A sequence of floats representing the residual in the horizontal hip reference frame.
-
-        Returns:
-            A sequence of floats representing the foot target positions in the horizontal hip reference frame.
-        """
-        self.foot_target_position_in_hip_frame = residual_xyz.reshape(-1, 6, 3)
-        self.gen_foot_trajectory_axis_z(delta_phi, self.clock())
-        self.foot_target_position_in_hip_frame += self.foot_trajectory
-
-        return self.foot_target_position_in_hip_frame
-
-    def transform_to_base_frame(self, position, quaternion):
-        """
-        Compute the position in the base frame, given the base orientation.
-
-        Args:
-            position: A tensor representing the point position.
-            quaternion: A tensor representing the quaternion (x, y, z, w) of the base link.
-
-        Returns:
-            A tensor representing the position in the base frame.
-        """
-        if torch.isnan(quaternion).any():
-            print("NaN detected in quaternion")
-        if torch.isnan(self.foot_target_position_in_hip_frame).any():
-            print("NaN detected in foot_target_position_in_hip_frame")
-        rpy = get_euler_xyz(quaternion)
-        rpy[:, 2] = 0
-        R = torch.matmul(coordinate_rotation(0, rpy[:, 0]), coordinate_rotation(1, rpy[:, 1]))
-        rotated_position = torch.matmul(R, position.transpose(1, 2)).transpose(1, 2)
-        rotated_position = rotated_position + self.hip_position.unsqueeze(0)
-
-        return rotated_position
-
-    def quat_apply_feet_positions(self, quat, positions):
-        """
-        Apply quaternion rotation to the foot positions.
-
-        Args:
-            quat: A tensor representing the quaternion (x, y, z, w).
-            positions: A tensor representing the foot positions.
-
-        Returns:
-            A tensor representing the foot positions after applying the quaternion rotation.
-        """
-        quat *= torch.tensor([-1, -1, -1, 1]).to(self.device)
-        num_feet = positions.shape[1]
-        quat = quat.repeat(1, num_feet).reshape(-1, num_feet)
-        quat_pos = quat_apply(quat, positions.reshape(-1, 3))
-
-        return quat_pos.view(positions.shape)
 
     def get_target_joint_angles(self, target_position_in_base_frame):
         """
@@ -419,6 +386,7 @@ base_orientation: quaternion (w,x,y,z) of the base link.
 
         return joint_angles
 
+    #-----------------------inverse kinematics-----------------------#
     def foot_position_in_hip_frame_to_joint_angle(self, foot_position):
         """
         Compute the motor angles for one leg using inverse kinematics (IK).
@@ -466,34 +434,6 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         q_limited = self._limit_angle(torch.stack([q0, q1, q2], dim=2))  # 输出形状为[n, 6, 3]
         return q_limited
 
-
-    # def foot_position_in_hip_frame_to_joint_angle(self, foot_position):
-    #     """
-    #     Compute the motor angles for one leg using inverse kinematics (IK).
-
-    #     Args:
-    #         foot_position: A tensor representing the foot positions in the hip frame.
-
-    #     Returns:
-    #         A tensor representing the motor angles for one leg.
-    #     """
-    #     l_up = self.UPPER_LEG_LENGTH
-    #     l_low = self.LOWER_LEG_LENGTH
-    #     l_hip = self.HIP_LENGTH * self.l_hip_sign
-    #     x, y, z = foot_position[:, :, 0], foot_position[:, :, 1], foot_position[:, :, 2]
-    #     theta_knee_input = torch.clip((x**2 + y**2 + z**2 - l_hip**2 - l_low**2 - l_up**2) / (2 * l_low * l_up), -1, 1)
-    #     theta_knee = -torch.arccos(theta_knee_input)
-    #     l = torch.sqrt(l_up**2 + l_low**2 + 2 * l_up * l_low * torch.cos(theta_knee))
-    #     theta_hip_input = torch.clip(-x / l, -1, 1)
-    #     theta_hip = torch.arcsin(theta_hip_input) - theta_knee / 2
-    #     c1 = l_hip * y - l * torch.cos(theta_hip + theta_knee / 2) * z
-    #     s1 = l * torch.cos(theta_hip + theta_knee / 2) * y + l_hip * z
-    #     theta_ab = torch.atan2(s1, c1)
-
-    #     res = torch.cat((theta_ab.unsqueeze(2), theta_hip.unsqueeze(2), theta_knee.unsqueeze(2)),
-    #                     dim=2).reshape(foot_position.shape[0], -1)
-    #     return res
-
     def _limit(self, value, upper=1.0, lower=-1.0):
         return torch.clamp(value, min=lower, max=upper)
 
@@ -501,6 +441,53 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         q[:, :, 1] = torch.clamp(q[:, :, 1], min=-0.5233, max=3.14)  # 限制 q1 在 [-0.5233, 3.1]
         q[:, :, 2] = torch.clamp(q[:, :, 2], min=-0.6978, max=3.14)  # 限制 q2 在 [-0.6978, 3.14]
         return q
+
+    
+    #-----------------------base_frame-----------------------#
+
+    def transform_to_base_frame(self, position, quaternion):
+        """
+        Compute the position in the base frame, given the base orientation.
+
+        Args:
+            position: A tensor representing the point position.
+            quaternion: A tensor representing the quaternion (x, y, z, w) of the base link.
+
+        Returns:
+            A tensor representing the position in the base frame.
+        """
+        if torch.isnan(quaternion).any():
+            print("NaN detected in quaternion")
+        if torch.isnan(self.foot_target_position_in_hip_frame).any():
+            print("NaN detected in foot_target_position_in_hip_frame")
+        rpy = get_euler_xyz(quaternion)
+        rpy[:, 2] = 0
+        R = torch.matmul(coordinate_rotation(0, rpy[:, 0]), coordinate_rotation(1, rpy[:, 1]))
+        rotated_position = torch.matmul(R, position.transpose(1, 2)).transpose(1, 2)
+        rotated_position = rotated_position + self.hip_position.unsqueeze(0)
+
+        return rotated_position
+
+    def quat_apply_feet_positions(self, quat, positions):
+        """
+        Apply quaternion rotation to the foot positions.
+
+        Args:
+            quat: A tensor representing the quaternion (x, y, z, w).
+            positions: A tensor representing the foot positions.
+
+        Returns:
+            A tensor representing the foot positions after applying the quaternion rotation.
+        """
+        quat *= torch.tensor([-1, -1, -1, 1]).to(self.device)
+        num_feet = positions.shape[1]
+        quat = quat.repeat(1, num_feet).reshape(-1, num_feet)
+        quat_pos = quat_apply(quat, positions.reshape(-1, 3))
+
+        return quat_pos.view(positions.shape)
+
+    
+
 
 
 if __name__ == "__main__":
