@@ -304,13 +304,25 @@ class EL_MINI_TEST(LeggedRobot):
         feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
         shoulder_names = [s for s in body_names if self.cfg.asset.shoulder_name in s]
         penalized_contact_names = []
-        self.penalize_joint_ids = []
-        self.upperAndlow_leg_joint_ids = []
+        
         for name in self.cfg.asset.penalize_contacts_on:
             penalized_contact_names.extend([s for s in body_names if name in s])
         termination_contact_names = []
         for name in self.cfg.asset.terminate_after_contacts_on:
             termination_contact_names.extend([s for s in body_names if name in s])
+
+        self.penalize_joint_ids = []
+        self.upperAndlow_leg_joint_ids = []
+        joint_names = list(self.cfg.init_state.default_joint_angles.keys())
+        print("joint_names = ", joint_names)
+        for i in range(len(self.dof_names)):
+            if self.dof_names[i] in [joint_names[0], joint_names[1], joint_names[2], joint_names[3]]:
+                self.penalize_joint_ids.append(i)
+            else:
+                self.upperAndlow_leg_joint_ids.append(i)
+        print("penalize_joint_ids = ", self.penalize_joint_ids)
+        print("upperAndlow_leg_joint_ids = ", self.upperAndlow_leg_joint_ids)
+
 
         base_init_state_list = self.cfg.init_state.pos + self.cfg.init_state.rot + self.cfg.init_state.lin_vel + self.cfg.init_state.ang_vel
         self.base_init_state = to_torch(base_init_state_list, device=self.device, requires_grad=False)
@@ -543,10 +555,10 @@ class EL_MINI_TEST(LeggedRobot):
         """
         self.commands[env_ids, 0] = torch_rand_float(self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         self.commands[env_ids, 1] = torch_rand_float(self.command_ranges["lin_vel_y"][0], self.command_ranges["lin_vel_y"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        if self.cfg.commands.heading_command:
-            self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0], self.command_ranges["heading"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        else:
-            self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        # if self.cfg.commands.heading_command:
+        #     self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0], self.command_ranges["heading"][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        # else:
+        #     self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
 
         # set small commands to zero
         self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
@@ -568,10 +580,6 @@ class EL_MINI_TEST(LeggedRobot):
             self.residual_angle = policy_outputs[:, 6:]
             delta_phi = policy_outputs[:, :6] * self.cfg.control.delta_phi_scale
             residual_angle = policy_outputs[:, 6:] * self.cfg.control.residual_angle_scale
-            if torch.isnan(delta_phi).any():
-                print("NaN detected in delta_phi")
-            if torch.isnan(residual_angle).any():
-                print("NaN detected in residual_angle")
             residual_xyz = torch.zeros(self.num_envs, self.num_actions).to(self.device)
             pmtg_joints = self.pmtg.get_action(delta_phi, residual_xyz, residual_angle, self.base_quat, command=self.commands)
             if torch.isnan(pmtg_joints).any():
@@ -837,8 +845,8 @@ class EL_MINI_TEST(LeggedRobot):
                 factor = self.pmtg.is_swing * self.pmtg.swing_phi
                 leg_joint_reward = torch.sum(torch.reshape(torch.reshape(torch.abs(self.dof_pos[:, self.upperAndlow_leg_joint_ids] - \
                                                 self.pmtg.planned_joint_angles[:, self.upperAndlow_leg_joint_ids]),
-                                                (self.num_envs, 4, 2)) * (factor**2).unsqueeze(-1),
-                                                (self.num_envs, 8)), dim=1)
+                                                (self.num_envs, 6, 2)) * (factor**2).unsqueeze(-1),
+                                                (self.num_envs, 12)), dim=1)
 
             return abad_joint_reward + leg_joint_reward
         
@@ -854,3 +862,14 @@ class EL_MINI_TEST(LeggedRobot):
             self.rigid_body_state[:, self.feet_indices, 2] - self.root_states[:, 2].reshape([-1, 1]))
         feet_height_error *= is_swing
         return torch.sum(torch.abs(feet_height_error.clip(min=0.0)), dim=1)
+    
+    def _reward_feet_swing_x(self):
+        # Penalize feet swing_x error
+        is_swing = self.pmtg.is_swing
+        # swing_leg_num = is_swing.sum(dim=1)
+        target_x = self.pmtg.foot_target_position_in_hip_frame[:, :, 0]
+        actual_x = self.rigid_body_state[:, self.feet_indices, 0] - self.root_states[:, 0].reshape([-1, 1])
+        tracking_error = target_x - actual_x
+        return torch.sum(torch.abs(tracking_error.clip(min=0.0)), dim=1)
+    
+

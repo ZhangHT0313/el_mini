@@ -32,7 +32,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class env:
-        num_envs = 4096
+        num_envs = 1024
         num_observations = 66   #66 = 3+3+3+18+18+18
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 18
@@ -45,11 +45,11 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         gait_type = 'trot'
         duty_factor = 0.5
         base_frequency = 1.25
-        max_clearance = 0.05
-        body_height = 0.17
-        consider_foothold = False
+        max_clearance = 0.08
+        body_height = 0.2
+        consider_foothold = True
         z_updown_height_func = ["cubic_up", "cubic_down"]
-        max_horizontal_offset = 0.05
+        max_horizontal_offset = 0.07
         train_mode = True
 
     class terrain( LeggedRobotCfg.terrain ):
@@ -107,7 +107,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
-        gamepad_commands = True
+        gamepad_commands = False
         class ranges:
             lin_vel_x = [-1.0, 1.0] # min max [m/s]
             lin_vel_y = [-1.0, 1.0]   # min max [m/s]
@@ -151,19 +151,40 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
             gravity = 0.05
             height_measurements = 0.1
   
-    class rewards( LeggedRobotCfg.rewards ):
-        base_height_target = 1
-        max_contact_force = 300.
-        only_positive_rewards = True
-        class scales( LeggedRobotCfg.rewards.scales ):
-            pass
+    class rewards:
+        class scales:
+            termination = -0.0
+            tracking_lin_vel = 2
+            tracking_ang_vel = 1
+            lin_vel_z = -0
+            ang_vel_xy = 0
+            orientation = -2
+            torques = 0
+            dof_vel = -0.
+            dof_acc = 0
+            base_height = -0
+            feet_air_time = 1
+            collision = 0
+            feet_stumble = -0.0 
+            action_rate = 0
+            stand_still = 0
+            feet_height = -1
+            feet_swing_x = -2
+        only_positive_rewards = False # if true negative total rewards are clipped at zero (avoids early termination problems)
+        tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
+        soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
+        soft_dof_vel_limit = 1.
+        soft_torque_limit = 1.
+        base_height_target = 0.2
+        max_contact_force = 300. # forces above this value are penalized
+        still_all = False
 
 class EL_MINI_TEST_PPO( LeggedRobotCfgPPO ):
     class policy:
-        init_noise_std = 0.3
+        init_noise_std = 0.1
         actor_hidden_dims = [512, 256, 128]
         critic_hidden_dims = [512, 256, 128]
-        activation = 'elu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+        activation = 'relu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
         # only for 'ActorCriticRecurrent':
         # rnn_type = 'lstm'
         # rnn_hidden_size = 512
