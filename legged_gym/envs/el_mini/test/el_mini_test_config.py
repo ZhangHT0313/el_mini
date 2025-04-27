@@ -46,7 +46,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         duty_factor = 0.5
         base_frequency = 1.25
         max_clearance = 0.08
-        body_height = 0.2
+        body_height = 0.17
         consider_foothold = True
         z_updown_height_func = ["cubic_up", "cubic_down"]
         max_horizontal_offset = 0.07
@@ -106,7 +106,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         max_curriculum = 1.
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
-        heading_command = True # if true: compute ang vel command from heading error
+        heading_command = False # if true: compute ang vel command from heading error
         gamepad_commands = False
         class ranges:
             lin_vel_x = [-1.0, 1.0] # min max [m/s]
@@ -175,7 +175,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
         soft_dof_vel_limit = 1.
         soft_torque_limit = 1.
-        base_height_target = 0.2
+        base_height_target = 0.17
         max_contact_force = 300. # forces above this value are penalized
         still_all = False
 

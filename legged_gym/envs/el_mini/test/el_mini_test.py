@@ -555,10 +555,10 @@ class EL_MINI_TEST(LeggedRobot):
         """
         self.commands[env_ids, 0] = torch_rand_float(self.command_ranges["lin_vel_x"][0], self.command_ranges["lin_vel_x"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         self.commands[env_ids, 1] = torch_rand_float(self.command_ranges["lin_vel_y"][0], self.command_ranges["lin_vel_y"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        # if self.cfg.commands.heading_command:
-        #     self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0], self.command_ranges["heading"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        # else:
-        #     self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        if self.cfg.commands.heading_command:
+            self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0], self.command_ranges["heading"][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        else:
+            self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
 
         # set small commands to zero
         self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
@@ -734,6 +734,11 @@ class EL_MINI_TEST(LeggedRobot):
             rew = self.reward_functions[i]() * self.reward_scales[name]
             self.rew_buf += rew
             self.episode_sums[name] += rew
+        
+            # debugging and printing some rewards
+            if name == "feet_swing_x":
+                print(f"Reward for feet_swing_x: {rew}")
+
         if self.cfg.rewards.only_positive_rewards:
             self.rew_buf[:] = torch.clip(self.rew_buf[:], min=0.)
         # add termination reward after clipping
@@ -741,7 +746,7 @@ class EL_MINI_TEST(LeggedRobot):
             rew = self._reward_termination() * self.reward_scales["termination"]
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
-    
+
 
     #------------ reward functions----------------
     def _reward_lin_vel_z(self):
@@ -869,7 +874,9 @@ class EL_MINI_TEST(LeggedRobot):
         # swing_leg_num = is_swing.sum(dim=1)
         target_x = self.pmtg.foot_target_position_in_hip_frame[:, :, 0]
         actual_x = self.rigid_body_state[:, self.feet_indices, 0] - self.root_states[:, 0].reshape([-1, 1])
-        tracking_error = target_x - actual_x
+        tracking_error = (target_x - actual_x)*is_swing
         return torch.sum(torch.abs(tracking_error.clip(min=0.0)), dim=1)
+    
+
     
 
