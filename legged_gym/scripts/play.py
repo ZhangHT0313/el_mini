@@ -42,7 +42,7 @@ import torch
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     env_cfg.terrain.num_rows = 5
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.curriculum = False
@@ -107,6 +107,19 @@ def play(args):
                     'base_vel_yaw': env.base_ang_vel[robot_index, 2].item(),
                     'contact_forces_z': env.contact_forces[robot_index, env.feet_indices, 2].cpu().numpy()
                 }
+            )
+            print(f"step {i} / {stop_state_log} : "
+                  f"dof_pos_target: {actions[robot_index, joint_index].item() * env.cfg.control.action_scale:.2f}, "
+                  f"dof_pos: {env.dof_pos[robot_index, joint_index].item():.2f}, "
+                  f"dof_vel: {env.dof_vel[robot_index, joint_index].item():.2f}, "
+                  f"dof_torque: {env.torques[robot_index, joint_index].item():.2f}, "
+                  f"command_x: {env.commands[robot_index, 0].item():.2f}, "
+                  f"command_y: {env.commands[robot_index, 1].item():.2f}, "
+                  f"command_yaw: {env.commands[robot_index, 2].item():.2f}, "
+                  f"base_vel_x: {env.base_lin_vel[robot_index, 0].item():.2f}, "
+                  f"base_vel_y: {env.base_lin_vel[robot_index, 1].item():.2f}, "
+                  f"base_vel_z: {env.base_lin_vel[robot_index, 2].item():.2f}, "
+                  f"base_vel_yaw: {env.base_ang_vel[robot_index, 2].item():.2f}"
             )
         elif i==stop_state_log:
             logger.plot_states()
