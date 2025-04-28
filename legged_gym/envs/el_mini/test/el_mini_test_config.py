@@ -32,7 +32,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class env:
-        num_envs = 1024
+        num_envs = 4096
         num_observations = 66   #66 = 3+3+3+18+18+18
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 18
@@ -45,11 +45,11 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         gait_type = 'trot'
         duty_factor = 0.5
         base_frequency = 1.25
-        max_clearance = 0.08
+        max_clearance = 0.1
         body_height = 0.17
         consider_foothold = True
         z_updown_height_func = ["cubic_up", "cubic_down"]
-        max_horizontal_offset = 0.05
+        max_horizontal_offset = 0.1
         train_mode = True
 
     class terrain( LeggedRobotCfg.terrain ):
@@ -106,11 +106,11 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         max_curriculum = 1.
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
-        heading_command = True # if true: compute ang vel command from heading error
+        heading_command = False # if true: compute ang vel command from heading error
         gamepad_commands = False
         class ranges:
             lin_vel_x = [-1.0, 1.0] # min max [m/s]
-            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
+            lin_vel_y = [-0.8, 0.8]   # min max [m/s]
             ang_vel_yaw = [-1, 1]    # min max [rad/s]
             heading = [-3.14, 3.14]
 
@@ -155,21 +155,21 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         class scales:
             termination = -0.0
             tracking_lin_vel = 2.5
-            tracking_ang_vel = 1
-            lin_vel_z = -0
-            ang_vel_xy = 0
-            orientation = -2
-            torques = 0
-            dof_vel = -0.
+            tracking_ang_vel = 2.
+            lin_vel_z = -0.5
+            ang_vel_xy = 0.5
+            orientation = -1
+            torques = -0.00001
+            dof_vel = -0.1
             dof_acc = 0
-            base_height = -0
-            feet_air_time = 1.0
+            base_height = -1
+            feet_air_time = 0#1.0
             collision = 0
             feet_stumble = -0.0 
-            action_rate = 0
-            stand_still = 0
-            feet_height = -1
-            feet_swing_x = -2.5
+            action_rate =-3.e-7
+            stand_still = -1
+            feet_height = 0
+            feet_swing_x = 0
 
         only_positive_rewards = False # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
@@ -177,7 +177,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         soft_dof_vel_limit = 1.
         soft_torque_limit = 1.
         base_height_target = 0.17
-        max_contact_force = 300. # forces above this value are penalized
+        max_contact_force = 200. # forces above this value are penalized
         still_all = False
 
 class EL_MINI_TEST_PPO( LeggedRobotCfgPPO ):
@@ -192,11 +192,11 @@ class EL_MINI_TEST_PPO( LeggedRobotCfgPPO ):
         # rnn_num_layers = 1
 
     class runner( LeggedRobotCfgPPO.runner ):
-        max_iterations = 1000
+        max_iterations = 2000
 
         # logging
         save_interval = 50 # check for potential saves every this many iterations
-        experiment_name = 'el_mini_test'
+        experiment_name = 'test'
         run_name = ''
         # load and resume
         resume = False
