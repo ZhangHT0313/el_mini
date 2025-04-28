@@ -736,8 +736,8 @@ class EL_MINI_TEST(LeggedRobot):
             self.episode_sums[name] += rew
         
             # debugging and printing some rewards
-            if name == "feet_swing_x":
-                print(f"Reward for feet_swing_x: {rew}")
+            # if name == "feet_swing_x":
+            #     print(f"Reward for feet_swing_x: {rew}")
 
         if self.cfg.rewards.only_positive_rewards:
             self.rew_buf[:] = torch.clip(self.rew_buf[:], min=0.)
@@ -876,7 +876,5 @@ class EL_MINI_TEST(LeggedRobot):
         actual_x = self.rigid_body_state[:, self.feet_indices, 0] - self.root_states[:, 0].reshape([-1, 1])
         tracking_error = (target_x - actual_x)*is_swing
         return torch.sum(torch.abs(tracking_error.clip(min=0.0)), dim=1)
-    
-
     
 

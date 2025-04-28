@@ -311,7 +311,6 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         #                                                                        base_orientation)
         # self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_base_frame)
         self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_hip_frame)
-
         # Flatten target_joint_angles to match the expected shape
         self.target_joint_angles = self.target_joint_angles.view(self.num_envs, -1)
         self.target_joint_angles += residual_angle

@@ -49,7 +49,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         body_height = 0.17
         consider_foothold = True
         z_updown_height_func = ["cubic_up", "cubic_down"]
-        max_horizontal_offset = 0.07
+        max_horizontal_offset = 0.05
         train_mode = True
 
     class terrain( LeggedRobotCfg.terrain ):
@@ -106,7 +106,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         max_curriculum = 1.
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
-        heading_command = False # if true: compute ang vel command from heading error
+        heading_command = True # if true: compute ang vel command from heading error
         gamepad_commands = False
         class ranges:
             lin_vel_x = [-1.0, 1.0] # min max [m/s]
@@ -154,7 +154,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class rewards:
         class scales:
             termination = -0.0
-            tracking_lin_vel = 2
+            tracking_lin_vel = 2.5
             tracking_ang_vel = 1
             lin_vel_z = -0
             ang_vel_xy = 0
@@ -163,13 +163,14 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
             dof_vel = -0.
             dof_acc = 0
             base_height = -0
-            feet_air_time = 1
+            feet_air_time = 1.0
             collision = 0
             feet_stumble = -0.0 
             action_rate = 0
             stand_still = 0
             feet_height = -1
-            feet_swing_x = -2
+            feet_swing_x = -2.5
+
         only_positive_rewards = False # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
         soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
@@ -202,3 +203,5 @@ class EL_MINI_TEST_PPO( LeggedRobotCfgPPO ):
         load_run = -1 # -1 = last run
         checkpoint = -1 # -1 = last saved model
         resume_path = None # updated from load_run and chkpt
+
+    
