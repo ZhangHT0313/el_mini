@@ -360,7 +360,7 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         self.swing_phi = (self.phi / (2 * torch.pi) - self.duty_factor) / (1 - self.duty_factor)  # [0,1)
         # f_up 抬升部分轨迹函数     f_down 降落部分轨迹函数
         factor = torch.where(self.swing_phi < 0.5, self.f_up(self.swing_phi), self.f_down(self.swing_phi))
-        self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) - self.body_height  # max_clearance 最大抬升高度
+        self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) #- self.body_height  # max_clearance 最大抬升高度
         self.foot_trajectory[:, :, 0] = -self.max_horizontal_offset * torch.sin(self.swing_phi * 2 * torch.pi) * self.is_swing
 
 

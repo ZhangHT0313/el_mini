@@ -314,14 +314,11 @@ class EL_MINI_TEST(LeggedRobot):
         self.penalize_joint_ids = []
         self.upperAndlow_leg_joint_ids = []
         joint_names = list(self.cfg.init_state.default_joint_angles.keys())
-        print("joint_names = ", joint_names)
         for i in range(len(self.dof_names)):
             if self.dof_names[i] in [joint_names[0], joint_names[1], joint_names[2], joint_names[3]]:
                 self.penalize_joint_ids.append(i)
             else:
                 self.upperAndlow_leg_joint_ids.append(i)
-        print("penalize_joint_ids = ", self.penalize_joint_ids)
-        print("upperAndlow_leg_joint_ids = ", self.upperAndlow_leg_joint_ids)
 
 
         base_init_state_list = self.cfg.init_state.pos + self.cfg.init_state.rot + self.cfg.init_state.lin_vel + self.cfg.init_state.ang_vel
@@ -628,6 +625,10 @@ class EL_MINI_TEST(LeggedRobot):
         self.cpg_phase_information = self.pmtg.update_observation()
 
         self._post_physics_step_callback()
+        
+        # print("Terrain origins (z):", self.env_origins[:, 2])
+        # base_height = self.root_states[:, 2]
+        # print("base_height = ", base_height)
 
         # compute observations, rewards, resets, ...
         self.check_termination()
@@ -765,6 +766,7 @@ class EL_MINI_TEST(LeggedRobot):
         # Penalize base height away from target
         base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
         return torch.square(base_height - self.cfg.rewards.base_height_target)
+        # return (base_height - self.cfg.rewards.base_height_target)
     
     def _reward_torques(self):
         # Penalize torques
