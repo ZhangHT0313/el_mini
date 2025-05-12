@@ -100,6 +100,8 @@ class PMTrajectoryGenerator:
         self.body_height = param.body_height
         self.duty_factor = param.duty_factor
         self.max_horizontal_offset = param.max_horizontal_offset
+        self.max_y_offset = param.max_y_offset
+        self.offset_y_foot_to_hip = param.offset_y_foot_to_hip
         self.train_mode = param.train_mode
 
         self.device = device
@@ -361,10 +363,9 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         # f_up 抬升部分轨迹函数     f_down 降落部分轨迹函数
         factor = torch.where(self.swing_phi < 0.5, self.f_up(self.swing_phi), self.f_down(self.swing_phi))
         self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) - self.body_height  # max_clearance 最大抬升高度
-        self.foot_trajectory[:,:,1] = 0.2
+        self.foot_trajectory[:,:,1] = self.max_y_offset* factor*self.is_swing + self.offset_y_foot_to_hip
         self.foot_trajectory[:,[3,4,5],1]*= -1
         self.foot_trajectory[:, :, 0] = -self.max_horizontal_offset * torch.sin(self.swing_phi * 2 * torch.pi) * self.is_swing
-
 
     def get_target_joint_angles(self, target_position_in_base_frame):
         """
