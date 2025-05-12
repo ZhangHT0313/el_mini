@@ -76,8 +76,14 @@ if __name__ == "__main__":
 
     # 示例电机角度数据，形状为 (2, 6, 3)，表示 2 个机器人，每个机器人有 6 条腿，每条腿有 3 个关节
     q = torch.tensor([[[0.0, 0.3,0.5],[0.0, 0.3,0.5],[0.0, 0.3,0.5],[0.0, 0.3,0.5],[0.0, 0.3,0.5],[0.0, 0.3,0.5]]], dtype=torch.float32, device=device)
+    p = torch.tensor([[[ 0.0500,  0.2000, -0.1300],
+        [ 0.0500,  0.2000, -0.1300],
+        [ 0.0500,  0.2000, -0.1300],
+        [ 0.0500, -0.2000, -0.1300],
+        [ 0.0500, -0.2000, -0.1300],
+        [ 0.0500, -0.2000, -0.1300]]],device=device)
     # 调用前向运动学函数计算脚的位置
     foot_position = kinematic.forward_kinematic(q)
     print("Foot position:\n", foot_position)
-    q_inverse = kinematic.inverse_kinematic(foot_position)
+    q_inverse = kinematic.inverse_kinematic(p)
     print("Inverse kinematics result:\n", q_inverse)

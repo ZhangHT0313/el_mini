@@ -45,11 +45,12 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         gait_type = 'trot'
         duty_factor = 0.5
         base_frequency = 1.25
-        max_clearance = 0.1
+        max_clearance = 0.05
         body_height = 0.17
         consider_foothold = True
         z_updown_height_func = ["cubic_up", "cubic_down"]
         max_horizontal_offset = 0.1
+        max_y_offset = 0.05
         train_mode = True
 
     class terrain( LeggedRobotCfg.terrain ):

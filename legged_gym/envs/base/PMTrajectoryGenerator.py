@@ -360,9 +360,10 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         self.swing_phi = (self.phi / (2 * torch.pi) - self.duty_factor) / (1 - self.duty_factor)  # [0,1)
         # f_up 抬升部分轨迹函数     f_down 降落部分轨迹函数
         factor = torch.where(self.swing_phi < 0.5, self.f_up(self.swing_phi), self.f_down(self.swing_phi))
-        self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) #- self.body_height  # max_clearance 最大抬升高度
+        self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) - self.body_height  # max_clearance 最大抬升高度
+        self.foot_trajectory[:,:,1] = 0.2
+        self.foot_trajectory[:,[3,4,5],1]*= -1
         self.foot_trajectory[:, :, 0] = -self.max_horizontal_offset * torch.sin(self.swing_phi * 2 * torch.pi) * self.is_swing
-
 
 
     def get_target_joint_angles(self, target_position_in_base_frame):
@@ -376,8 +377,9 @@ base_orientation: quaternion (w,x,y,z) of the base link.
             A tensor representing the joint angles for each leg.
         """
         foot_position = target_position_in_base_frame - self.hip_offsets
-        # print("foot_position", foot_position)
+        print("foot_position", foot_position[0])
         joint_angles = self.foot_position_in_hip_frame_to_joint_angle(foot_position)
+        print("joint_angles", joint_angles[0])
         if torch.isnan(foot_position).any():
             print("NaN detected in foot_position")
         if torch.isnan(joint_angles).any():
@@ -396,9 +398,14 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         Returns:
             A tensor representing the motor angles for one leg.
         """
-        self.l2 = self.UPPER_LEG_LENGTH
-        self.l1 = self.LOWER_LEG_LENGTH
-        self.l0 = self.HIP_LENGTH
+        # self.l2 = self.UPPER_LEG_LENGTH
+        # self.l1 = self.LOWER_LEG_LENGTH
+        # self.l0 = self.HIP_LENGTH
+
+        self.l0 = 0.15
+        self.l1 = 0.13
+        self.l2 = 0.232
+
         # p的形状为[n, 6, 3]
         pos = foot_position.clone()
         pos[:,:,2] += self.hip_offset  # 偏移量
@@ -420,16 +427,6 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         q1 = torch.pi / 2 - q1
         q2 += torch.pi
 
-        if torch.isnan(K0).any():
-            print("NaN detected in K0")
-        if torch.isnan(K).any():
-            print("NaN detected in K")
-        if torch.isnan(q0).any():
-            print("NaN detected in q0")
-        if torch.isnan(q1).any():
-            print("NaN detected in q1")
-        if torch.isnan(q2).any():
-            print("NaN detected in q2")
         q_limited = self._limit_angle(torch.stack([q0, q1, q2], dim=2))  # 输出形状为[n, 6, 3]
         return q_limited
 
