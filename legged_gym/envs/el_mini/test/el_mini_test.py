@@ -610,6 +610,7 @@ class EL_MINI_TEST(LeggedRobot):
         """
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
 
         self.episode_length_buf += 1
         self.common_step_counter += 1
@@ -720,7 +721,6 @@ class EL_MINI_TEST(LeggedRobot):
             self.reward_names.append(name)
             name = '_reward_' + name
             self.reward_functions.append(getattr(self, name))
-
         # reward episode sums
         self.episode_sums = {name: torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
                              for name in self.reward_scales.keys()}
@@ -765,8 +765,8 @@ class EL_MINI_TEST(LeggedRobot):
     def _reward_base_height(self):
         # Penalize base height away from target
         base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
-        return torch.square(base_height - self.cfg.rewards.base_height_target)
-        # return (base_height - self.cfg.rewards.base_height_target)
+        # return torch.square(base_height - self.cfg.rewards.base_height_target)
+        return abs(base_height - self.cfg.rewards.base_height_target)
     
     def _reward_torques(self):
         # Penalize torques
@@ -861,22 +861,30 @@ class EL_MINI_TEST(LeggedRobot):
         # penalize high contact forces
         return torch.sum((torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) -  self.cfg.rewards.max_contact_force).clip(min=0.), dim=1)
 
-    def _reward_feet_height(self):
-        # Penalize feet height error
+    def _reward_leg_swing_control(self):
+        # Detect if feet are in contact with the ground
+        contact = self.contact_forces[:, self.feet_indices, 2] > 1.0  # Z-axis contact force threshold
+        
+        # Check if the leg is in swing phase
         is_swing = self.pmtg.is_swing
-        # swing_leg_num = is_swing.sum(dim=1)
-        feet_height_error = self.pmtg.foot_target_position_in_hip_frame[:, :, 2] - (
-            self.rigid_body_state[:, self.feet_indices, 2] - self.root_states[:, 2].reshape([-1, 1]))
-        feet_height_error *= is_swing
-        return torch.sum(torch.abs(feet_height_error.clip(min=0.0)), dim=1)
-    
-    def _reward_feet_swing_x(self):
-        # Penalize feet swing_x error
-        is_swing = self.pmtg.is_swing
-        # swing_leg_num = is_swing.sum(dim=1)
-        target_x = self.pmtg.foot_target_position_in_hip_frame[:, :, 0]
-        actual_x = self.rigid_body_state[:, self.feet_indices, 0] - self.root_states[:, 0].reshape([-1, 1])
-        tracking_error = (target_x - actual_x)*is_swing
-        return torch.sum(torch.abs(tracking_error.clip(min=0.0)), dim=1)
-    
+        
+        # Initialize buffers if not already initialized
+        self.x_swing_distance_buffer = torch.zeros_like(self.rigid_body_state[:, self.feet_indices, 0], device=self.device)
+        self.last_x_position = self.rigid_body_state[:, self.feet_indices, 0].clone()
+        self.reward_x_swing_distance = torch.zeros_like(self.rigid_body_state[:, self.feet_indices, 0], device=self.device)
+        
+        # Update x_swing_distance_buffer for legs in swing phase
+        swing_condition = is_swing
+        x_position = self.rigid_body_state[:, self.feet_indices, 0]
+        self.x_swing_distance_buffer[swing_condition] += torch.abs(x_position[swing_condition] - self.last_x_position[swing_condition])
+        self.last_x_position[swing_condition] = x_position[swing_condition]
+        
+        # Handle legs in stance phase
+        stance_condition = ~is_swing
+        self.reward_x_swing_distance[stance_condition] = self.x_swing_distance_buffer[stance_condition]
+        self.x_swing_distance_buffer[stance_condition] = 0.0  # Reset buffer for next swing phase
+        print("reward_x_swing_distance = ", self.reward_x_swing_distance)
+        
+        # Return the sum of the reward variable across all legs
+        return torch.sum(self.reward_x_swing_distance, dim=1)
 

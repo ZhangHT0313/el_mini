@@ -32,7 +32,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class env:
-        num_envs = 4096
+        num_envs = 4078
         num_observations = 66   #66 = 3+3+3+18+18+18
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 18
@@ -49,7 +49,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         body_height = 0.17
         consider_foothold = True
         z_updown_height_func = ["cubic_up", "cubic_down"]
-        max_horizontal_offset = 0.1
+        max_horizontal_offset = 0.07
         max_y_offset = 0.05
         offset_y_foot_to_hip = 0.25
         train_mode = True
@@ -157,22 +157,20 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class rewards:
         class scales:
             termination = -0.0
-            tracking_lin_vel = 2.5
+            tracking_lin_vel = 3
             tracking_ang_vel = 2.
             lin_vel_z = -0.5
             ang_vel_xy = -0.5
-            orientation = -1
-            torques = -0.00001
-            dof_vel = -0.1
+            orientation = -3
+            torques = -0.0005 #-0.00001
+            dof_vel = 0
             dof_acc = 0
             base_height = -1
-            feet_air_time = 0#1.0
-            collision = 0
+            feet_air_time = 0
+            collision = -1
             feet_stumble = -0.0 
             action_rate =-3.e-7
-            stand_still = -1
-            feet_height = 0
-            feet_swing_x = 0
+            leg_swing_control = -10
 
         only_positive_rewards = False # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
@@ -202,9 +200,9 @@ class EL_MINI_TEST_PPO( LeggedRobotCfgPPO ):
         experiment_name = 'test'
         run_name = ''
         # load and resume
-        resume = False
+        resume = False         
         load_run = -1 # -1 = last run
         checkpoint = -1 # -1 = last saved model
         resume_path = None # updated from load_run and chkpt
 
-    
+

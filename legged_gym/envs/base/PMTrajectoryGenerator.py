@@ -309,8 +309,8 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         if torch.isnan(residual_angle).any():
             print("NaN detected in residual_angle")
         self.gen_foot_target_position_in_horizontal_hip_frame(delta_phi, residual_xyz, **kwargs)
-        # self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
-        #                                                                        base_orientation)
+        self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
+                                                                               base_orientation)
         # self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_base_frame)
         self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_hip_frame)
         # Flatten target_joint_angles to match the expected shape
@@ -363,7 +363,7 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         # f_up 抬升部分轨迹函数     f_down 降落部分轨迹函数
         factor = torch.where(self.swing_phi < 0.5, self.f_up(self.swing_phi), self.f_down(self.swing_phi))
         self.foot_trajectory[:, :, 2] = factor * (self.is_swing * self.max_clearance) - self.body_height  # max_clearance 最大抬升高度
-        self.foot_trajectory[:,:,1] = self.max_y_offset* factor*self.is_swing + self.offset_y_foot_to_hip
+        self.foot_trajectory[:,:,1] = 0.7*self.max_y_offset* factor*self.is_swing + self.offset_y_foot_to_hip
         self.foot_trajectory[:,[3,4,5],1]*= -1
         self.foot_trajectory[:, :, 0] = -self.max_horizontal_offset * torch.sin(self.swing_phi * 2 * torch.pi) * self.is_swing
 
@@ -378,9 +378,9 @@ base_orientation: quaternion (w,x,y,z) of the base link.
             A tensor representing the joint angles for each leg.
         """
         foot_position = target_position_in_base_frame - self.hip_offsets
-        print("foot_position", foot_position[0])
+        # print("foot_position", foot_position[0])
         joint_angles = self.foot_position_in_hip_frame_to_joint_angle(foot_position)
-        print("joint_angles", joint_angles[0])
+        # print("joint_angles", joint_angles[0])
         if torch.isnan(foot_position).any():
             print("NaN detected in foot_position")
         if torch.isnan(joint_angles).any():
