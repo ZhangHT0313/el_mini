@@ -309,8 +309,8 @@ base_orientation: quaternion (w,x,y,z) of the base link.
         if torch.isnan(residual_angle).any():
             print("NaN detected in residual_angle")
         self.gen_foot_target_position_in_horizontal_hip_frame(delta_phi, residual_xyz, **kwargs)
-        self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
-                                                                               base_orientation)
+        # self.foot_target_position_in_base_frame = self.transform_to_base_frame(self.foot_target_position_in_hip_frame,
+        #                                                                        base_orientation)
         # self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_base_frame)
         self.target_joint_angles = self.get_target_joint_angles(self.foot_target_position_in_hip_frame)
         # Flatten target_joint_angles to match the expected shape

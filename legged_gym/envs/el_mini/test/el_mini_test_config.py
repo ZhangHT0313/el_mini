@@ -32,7 +32,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class env:
-        num_envs = 4078
+        num_envs = 4096
         num_observations = 66   #66 = 3+3+3+18+18+18
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 18
@@ -156,21 +156,26 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
   
     class rewards:
         class scales:
-            termination = -0.0
-            tracking_lin_vel = 3
-            tracking_ang_vel = 2.
             lin_vel_z = -0.5
             ang_vel_xy = -0.5
             orientation = -3
             torques = -0.0005 #-0.00001
             dof_vel = 0
             dof_acc = 0
-            base_height = -1
-            feet_air_time = 0
-            collision = -1
-            feet_stumble = -0.0 
             action_rate =-3.e-7
-            leg_swing_control = -10
+            collision = -1
+            termination = -1
+            dof_pos_limits = -1
+            dof_vel_limits = -1
+            torque_limits = -1
+            tracking_lin_vel = 3
+            tracking_ang_vel = 2.
+            feet_air_time = 0
+            stumble = -1 
+            stand_still = -0.5
+            feet_contact_forces = -1
+            leg_swing_control = -2
+            base_height = -1
 
         only_positive_rewards = False # if true negative total rewards are clipped at zero (avoids early termination problems)
         tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)

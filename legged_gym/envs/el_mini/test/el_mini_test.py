@@ -883,7 +883,7 @@ class EL_MINI_TEST(LeggedRobot):
         stance_condition = ~is_swing
         self.reward_x_swing_distance[stance_condition] = self.x_swing_distance_buffer[stance_condition]
         self.x_swing_distance_buffer[stance_condition] = 0.0  # Reset buffer for next swing phase
-        print("reward_x_swing_distance = ", self.reward_x_swing_distance)
+        # print("reward_x_swing_distance = ", self.reward_x_swing_distance)
         
         # Return the sum of the reward variable across all legs
         return torch.sum(self.reward_x_swing_distance, dim=1)
