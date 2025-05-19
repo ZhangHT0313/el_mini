@@ -76,7 +76,7 @@ def play(args):
 
     for i in range(10*int(env.max_episode_length)):
 
-        env.commands[:, 0] = -1.0  # 前向
+        env.commands[:, 0] = 1.0  # 前向
         env.commands[:, 1] = 0.0  # 横向速度
         env.commands[:, 2] = 0.0  # 偏航角速度
 

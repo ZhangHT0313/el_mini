@@ -154,18 +154,6 @@ class PMTrajectoryGenerator:
         self.com_offset = to_torch(COM_OFFSET, device=self.device)
         self.hip_offsets = to_torch(HIP_OFFSETS, device=self.device)
         self.hip_position = to_torch(HIP_POSITION, device=self.device)
-        # swap_leg_operator = torch.zeros((6, 6), device=self.device, dtype=torch.float)
-        # # 交换腿0和腿1
-        # swap_leg_operator[0, 1] = 1.0
-        # swap_leg_operator[1, 0] = 1.0
-        # # 交换腿2和腿3
-        # swap_leg_operator[2, 3] = 1.0
-        # swap_leg_operator[3, 2] = 1.0
-        # # 交换腿4和腿5
-        # swap_leg_operator[4, 5] = 1.0
-        # swap_leg_operator[5, 4] = 1.0
-        # self.hip_offsets = torch.matmul(swap_leg_operator, self.hip_offsets)
-        # self.hip_position = torch.matmul(swap_leg_operator, self.hip_position)
 
         self.f_up = self.gen_func(param.z_updown_height_func[0])
         self.f_down = self.gen_func(param.z_updown_height_func[1])
