@@ -38,7 +38,7 @@ from isaacgym import gymtorch, gymapi, gymutil
 import torch
 # from torch.tensor import Tensor
 from typing import Tuple, Dict
-
+from legged_gym.utils.math import quat_apply_yaw, wrap_to_pi, torch_rand_sqrt_float
 from legged_gym.envs import LeggedRobot
 from legged_gym import LEGGED_GYM_ROOT_DIR
 from .el_mini_test_config import EL_MINI_TEST_Cfg
@@ -63,7 +63,11 @@ class EL_MINI_TEST(LeggedRobot):
         self.cfg = cfg
         self.sim_params = sim_params
         self.height_samples = None
-        self.debug_viz = False
+
+        self.debug_viz = True
+        self.enable_viewer_sync = True
+        self.viewer = True
+
         self.init_done = False
         self.task_name = task_name
         self._parse_cfg(self.cfg)
@@ -84,6 +88,9 @@ class EL_MINI_TEST(LeggedRobot):
                                           param=self.cfg.pmtg,
                                           task_name=task_name)
         self.count = 0
+        self.actions_debug = None
+
+        
         
     def clock(self):
         return self.gym.get_sim_time(self.sim)
@@ -393,6 +400,26 @@ class EL_MINI_TEST(LeggedRobot):
             self.env_origins[:, 1] = spacing * yy.flatten()[:self.num_envs]
             self.env_origins[:, 2] = 0.
 
+    def _draw_debug_vis(self):
+        """ Draws visualizations for dubugging (slows down simulation a lot).
+            Default behaviour: draws height measurement points
+        """
+        # draw height lines
+        if not self.terrain.cfg.measure_heights:
+            return
+        self.gym.clear_lines(self.viewer)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
+        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 4, 4, None, color=(1, 1, 0))
+        for i in range(self.num_envs):
+            base_pos = (self.root_states[i, :3]).cpu().numpy()
+            heights = self.measured_heights[i].cpu().numpy()
+            height_points = quat_apply_yaw(self.base_quat[i].repeat(heights.shape[0]), self.height_points[i]).cpu().numpy()
+            for j in range(heights.shape[0]):
+                x = height_points[j, 0] + base_pos[0]
+                y = height_points[j, 1] + base_pos[1]
+                z = heights[j]
+                sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+                gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose)
 
 
     #explore
@@ -579,6 +606,7 @@ class EL_MINI_TEST(LeggedRobot):
             pmtg_joints = self.pmtg.get_action(delta_phi, residual_xyz, residual_angle, self.base_quat, command=self.commands)
             clip_actions = self.cfg.normalization.clip_actions
             self.actions = torch.clip(pmtg_joints, -clip_actions, clip_actions).to(self.device)
+            self.actions_debug = self.actions.clone()
             self.torques = self._compute_torques(self.actions).view(self.torques.shape)
             self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
             self.gym.simulate(self.sim)

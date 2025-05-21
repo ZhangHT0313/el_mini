@@ -131,6 +131,7 @@ class Logger:
             mean = np.sum(np.array(values)) / self.num_episodes
             print(f" - {key}: {mean}")
         print(f"Total number of episodes: {self.num_episodes}")
+        print(f"Total rewards: {np.sum(np.array(list(self.rew_log.values())))}")
     
     def __del__(self):
         if self.plot_process is not None:

@@ -97,8 +97,6 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         # PD Drive parameters:
         stiffness = {'HAA': 40., 'HFE': 40., 'KFE': 40.}  # [N*m/rad]
         damping = {'HAA': 0.8, 'HFE': 0.8, 'KFE': 0.8}     # [N*m*s/rad]
-        # action scale: target angle = actionScale * action + defaultAngle
-        action_scale = 0.5
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 4
         use_actuator_network = True
@@ -113,7 +111,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         gamepad_commands = False
         class ranges:
             lin_vel_x = [-1.0, 1.0] # min max [m/s]
-            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
+            lin_vel_y = [-0.8, 0.8]   # min max [m/s]
             ang_vel_yaw = [-1, 1]    # min max [rad/s]
             heading = [-3.14, 3.14]
 
@@ -161,15 +159,15 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
             orientation = -1
             torques = -0.0005 #-0.00001
             dof_vel = -0.001
-            dof_acc = 0
-            action_rate =-3.e-7
+            dof_acc = -0.00001
+            action_rate =-1.e-6
             collision = -1
             termination = -1
             dof_pos_limits = -1
             dof_vel_limits = -1
             torque_limits = 0
             tracking_lin_vel = 3
-            tracking_ang_vel = 2.
+            tracking_ang_vel = 2
             feet_air_time = 0
             stumble = 0 
             stand_still = -0.5
