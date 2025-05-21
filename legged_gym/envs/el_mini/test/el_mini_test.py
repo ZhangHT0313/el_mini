@@ -568,8 +568,6 @@ class EL_MINI_TEST(LeggedRobot):
         Args:
             policy_outputs (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
         """
-        if torch.isnan(policy_outputs).any():
-            print("NaN detected in policy_outputs")
         # step physics and render each frame
         self.render()
         for _ in range(self.cfg.control.decimation):
@@ -579,8 +577,6 @@ class EL_MINI_TEST(LeggedRobot):
             residual_angle = policy_outputs[:, 6:] * self.cfg.control.residual_angle_scale
             residual_xyz = torch.zeros(self.num_envs, self.num_actions).to(self.device)
             pmtg_joints = self.pmtg.get_action(delta_phi, residual_xyz, residual_angle, self.base_quat, command=self.commands)
-            if torch.isnan(pmtg_joints).any():
-                print("NaN detected in pmtg_joints")
             clip_actions = self.cfg.normalization.clip_actions
             self.actions = torch.clip(pmtg_joints, -clip_actions, clip_actions).to(self.device)
             self.torques = self._compute_torques(self.actions).view(self.torques.shape)
@@ -596,7 +592,7 @@ class EL_MINI_TEST(LeggedRobot):
 
         self.post_physics_step()
         self.count += 1
-        # print("reward_buffer = ",self.rew_buf)dafssajdfasdfasd
+        # print("reward_buffer = ",self.rew_buf)
         # return clipped obs, clipped states (None), rewards, dones and infos
         clip_obs = self.cfg.normalization.clip_observations
         self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
@@ -617,8 +613,6 @@ class EL_MINI_TEST(LeggedRobot):
 
         # prepare quantities
         self.base_quat[:] = self.root_states[:, 3:7]
-        if torch.isnan(self.base_quat).any():
-            print("NaN detected in base_quat")
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
@@ -688,7 +682,8 @@ class EL_MINI_TEST(LeggedRobot):
                                     self.commands[:, :3] * self.commands_scale,
                                     (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
                                     self.dof_vel * self.obs_scales.dof_vel,
-                                    self.actions
+                                    self.actions,
+                                    self.cpg_phase_information
                                     ),dim=-1)
         
         # add perceptive inputs if not blind

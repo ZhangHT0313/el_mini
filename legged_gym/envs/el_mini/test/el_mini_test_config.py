@@ -33,7 +33,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class env:
         num_envs = 4096
-        num_observations = 66   #66 = 3+3+3+18+18+18
+        num_observations = 85  #85 = 3+3+3+3+18+18+18+19
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 18
         num_policy_outputs = 24
@@ -44,7 +44,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
     class pmtg:
         gait_type = 'trot'
         duty_factor = 0.5
-        base_frequency = 2
+        base_frequency = 2.5
         max_clearance = 0.07
         body_height = 0.17
         consider_foothold = True
@@ -185,6 +185,16 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
         base_height_target = 0.17
         max_contact_force = 200. # forces above this value are penalized
         still_all = False
+    
+    class normalization:
+        class obs_scales:
+            lin_vel = 2.0
+            ang_vel = 0.25
+            dof_pos = 1.0
+            dof_vel = 0.05
+            height_measurements = 5.0
+        clip_observations = 100.
+        clip_actions = 100.
 
 class EL_MINI_TEST_PPO( LeggedRobotCfgPPO ):
     class policy:
