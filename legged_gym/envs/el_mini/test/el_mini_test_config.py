@@ -157,7 +157,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
             lin_vel_z = -1
             ang_vel_xy = -1
             orientation = -1
-            torques = -0.0005 #-0.00001
+            torques = -0.001 #-0.00001
             dof_vel = -0.001
             dof_acc = -0.00001
             action_rate =-1.e-6
@@ -166,7 +166,7 @@ class EL_MINI_TEST_Cfg( LeggedRobotCfg ):
             dof_pos_limits = -1
             dof_vel_limits = -1
             torque_limits = 0
-            tracking_lin_vel = 3
+            tracking_lin_vel = 3.
             tracking_ang_vel = 2
             feet_air_time = 0
             stumble = 0 
